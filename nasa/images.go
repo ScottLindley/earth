@@ -57,11 +57,12 @@ func downloadImages(ctx context.Context, imageMetas <-chan ImageMeta) <-chan boo
 	return done
 }
 
-func downloadImageIfNotExists(im ImageMeta) error {
-	dir := "images"
-	path := dir + "/" + im.Date + ".png"
+const imageFileDir = "images"
 
-	if err := mkdirIfNotExists(dir); err != nil {
+func downloadImageIfNotExists(im ImageMeta) error {
+	path := BuildImageFilePath(im)
+
+	if err := mkdirIfNotExists(imageFileDir); err != nil {
 		return err
 	}
 
@@ -90,4 +91,9 @@ func downloadImageIfNotExists(im ImageMeta) error {
 
 	_, err = io.Copy(f, resp.Body)
 	return err
+}
+
+// BuildImageFilePath - given image meta data, create the files system path
+func BuildImageFilePath(im ImageMeta) string {
+	return imageFileDir + "/" + im.Date + ".png"
 }

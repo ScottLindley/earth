@@ -13,8 +13,17 @@ import (
 // ImageMeta -
 // Meta data that describes an available image taken on a particular date.
 type ImageMeta struct {
-	Image string
-	Date  string
+	Image               string
+	Date                string
+	CentroidCoordinates struct {
+		Lat float64 `json:"lat"`
+		Lng float64 `json:"lon"`
+	} `json:"centroid_coordinates"`
+	SatellitePosition struct {
+		X float64
+		Y float64
+		Z float64
+	} `json:"dscovr_j2000_position"`
 }
 
 // There are no more available images before this date.
@@ -28,7 +37,7 @@ func getImageMetaForDate(date string) ([]ImageMeta, error) {
 
 	var b []byte
 	var err error
-	path := cacheDir + "/" + date
+	path := buildFilePath(date)
 	if fileExists(path) {
 		b, err = ioutil.ReadFile(path)
 	} else {
@@ -57,7 +66,7 @@ func getImageMetaForDate(date string) ([]ImageMeta, error) {
 }
 
 func writeImageMetaIfNotExists(date string, data []byte) error {
-	path := cacheDir + "/" + date
+	path := buildFilePath(date)
 
 	if err := mkdirIfNotExists(cacheDir); err != nil {
 		return err
@@ -119,4 +128,8 @@ func getPreviousDate(date string) (string, error) {
 	}
 	t = t.Add(-time.Hour * 24)
 	return t.Format(layoutISO), nil
+}
+
+func buildFilePath(date string) string {
+	return cacheDir + "/" + date + ".json"
 }
