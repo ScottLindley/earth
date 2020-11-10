@@ -162,9 +162,9 @@ func GenerateFrame(im1, im2 nasa.ImageMeta, lng float64) error {
 			y1Scaled := int(-(y1 * halfHeight * earthScale1) + halfHeight)
 			pixel1 := image1.At(x1Scaled, y1Scaled)
 
-			x2, y1 := latLngToCoordinates(projectedLat, projectedLng, degreesToRadians(centroid2.Lat), degreesToRadians(centroid2.Lng))
+			x2, y2 := latLngToCoordinates(projectedLat, projectedLng, degreesToRadians(centroid2.Lat), degreesToRadians(centroid2.Lng))
 			x2Scaled := int((x2 * halfWidth * earthScale2) + halfWidth)
-			y2Scaled := int(-(y1 * halfHeight * earthScale2) + halfHeight)
+			y2Scaled := int(-(y2 * halfHeight * earthScale2) + halfHeight)
 			pixel2 := image2.At(x2Scaled, y2Scaled)
 
 			r1, g1, b1, a1 := pixel1.RGBA()
