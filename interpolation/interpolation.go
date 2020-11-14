@@ -198,8 +198,7 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan st
 
 	go func() {
 		defer close(out)
-		// The number of frames to generate in between the two images
-		const frameCount = 3
+		const step = 2
 		var prevIm nasa.ImageMeta
 
 		for {
@@ -218,18 +217,26 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan st
 				fmt.Println("----------------------")
 				fmt.Printf("prev: %s, im: %s\n", prevIm.Date, im.Date)
 
-				diff := lngDiff(prevIm.CentroidCoordinates.Lng, im.CentroidCoordinates.Lng)
-				decrement := diff / frameCount
-
 				fmt.Printf("FIRST - prev: %f, end: %f\n", prevIm.CentroidCoordinates.Lng, im.CentroidCoordinates.Lng)
-				fmt.Printf("diff: %f, decr: %f\n", diff, decrement)
 
-				fmt.Println("FRAMES:")
+				originalDiff := lngDiff(prevIm.CentroidCoordinates.Lng, im.CentroidCoordinates.Lng)
+				diff := originalDiff
 				lng := prevIm.CentroidCoordinates.Lng
-				for frame := 1; frame <= frameCount-1; frame++ {
-					lng -= decrement
+				frame := 0
+				for true {
+					fmt.Println("FRAME: ", frame)
+					lng -= step
 					if lng < -180 {
 						lng += 360
+					}
+					diff = lngDiff(lng, im.CentroidCoordinates.Lng)
+					if diff > originalDiff {
+						break
+					}
+					fmt.Println(diff)
+					frame++
+					if frame > 20 {
+						return
 					}
 					fmt.Printf("prev: %f, lng: %f, end: %f\n", prevIm.CentroidCoordinates.Lng, lng, im.CentroidCoordinates.Lng)
 					path := buildFrameFilePath(prevIm, frame)
