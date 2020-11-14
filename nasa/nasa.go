@@ -8,7 +8,7 @@ import (
 // DownloadImages -
 // Walk backwards from today and fetch all images with their associated
 // metadata and save to disk.
-func DownloadImages(ctx context.Context) <-chan bool {
+func DownloadImages(ctx context.Context) <-chan ImageMeta {
 	startDate := getYesterdayDateString()
 	return downloadImages(ctx, generateImageMeta(ctx, startDate))
 }

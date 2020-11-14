@@ -1,6 +1,7 @@
 package interpolation
 
 import (
+	"context"
 	"earth/nasa"
 	"fmt"
 	"image"
@@ -9,6 +10,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"strings"
 )
 
 const width = float64(2048)
@@ -69,12 +71,8 @@ func computeEarthScaleFromImage(im nasa.ImageMeta) float64 {
 	return computeEarthScale(computeDistanceFromEarth(im))
 }
 
-func lngDiff(lng1, lng2 float64) float64 {
-	diff := lng1 - lng2
-	if diff < 0 {
-		diff += 360
-	}
-	return diff
+func lngDiff(ln1, ln2 float64) float64 {
+	return math.Mod((ln1-ln2)+360, 360)
 }
 
 // Given a point on the projected virtual sphere,
@@ -91,7 +89,7 @@ func latLngToCoordinates(projectedLat, projectedLng, realImageLat, realImageLng 
 // Given two images, interpolate at the provided lng
 // which is expected to fall somewhere between the first image lng
 // the second image lng.
-func GenerateFrame(im1, im2 nasa.ImageMeta, lng float64) error {
+func generateFrame(im1, im2 nasa.ImageMeta, lng float64, outFileName string) error {
 	centroid1 := im1.CentroidCoordinates
 	image1, err := loadImage(im1)
 	if err != nil {
@@ -111,6 +109,7 @@ func GenerateFrame(im1, im2 nasa.ImageMeta, lng float64) error {
 	// Each image will carry a weight between 0 and 1 where w1 + w2 = 1
 	// These weights can be used to find the lat/lng of the virtual centroid
 	// as well as computing the composite pixel value.
+	fmt.Printf("n1: %f, n2: %f, denom %f\n", lngDiff(centroid1.Lng, lng), lngDiff(lng, centroid2.Lng), lngDiff(centroid1.Lng, centroid2.Lng))
 	weight1 := lngDiff(centroid1.Lng, lng) / lngDiff(centroid1.Lng, centroid2.Lng)
 	weight2 := lngDiff(lng, centroid2.Lng) / lngDiff(centroid1.Lng, centroid2.Lng)
 	fmt.Println(weight1, weight2)
@@ -121,6 +120,7 @@ func GenerateFrame(im1, im2 nasa.ImageMeta, lng float64) error {
 	distanceFromEarth := (computeDistanceFromEarth(im1) * weight1) + (computeDistanceFromEarth(im2) * weight2)
 	// How large the earth should appear as a percentage of the image width (ex. 0.78)
 	earthScale := computeEarthScale(distanceFromEarth)
+	fmt.Println("earth scale", earthScale)
 
 	// The in-memory synthesized image to be written to disk
 	pixelsOut := image.NewRGBA64(image.Rectangle{image.Point{0, 0}, image.Point{int(width), int(height)}})
@@ -181,8 +181,69 @@ func GenerateFrame(im1, im2 nasa.ImageMeta, lng float64) error {
 		}
 	}
 
-	f, _ := os.Create("synthetic.png")
+	f, _ := os.Create(outFileName)
 	png.Encode(f, pixelsOut)
 
 	return nil
+}
+
+func buildFrameFilePath(im nasa.ImageMeta, frame int) string {
+	dateFilePath := nasa.BuildImageFilePath(im)
+	return fmt.Sprintf(strings.Split(dateFilePath, "_4.png")[0]+"_%d.png", frame)
+}
+
+// InterpolateImages -
+func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan string {
+	out := make(chan string)
+
+	go func() {
+		defer close(out)
+		// The number of frames to generate in between the two images
+		const frameCount = 3
+		var prevIm nasa.ImageMeta
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case im, ok := <-ims:
+				if !ok {
+					return
+				}
+				if prevIm.Date == "" {
+					prevIm = im
+					continue
+				}
+
+				fmt.Println("----------------------")
+				fmt.Printf("prev: %s, im: %s\n", prevIm.Date, im.Date)
+
+				diff := lngDiff(prevIm.CentroidCoordinates.Lng, im.CentroidCoordinates.Lng)
+				decrement := diff / frameCount
+
+				fmt.Printf("FIRST - prev: %f, end: %f\n", prevIm.CentroidCoordinates.Lng, im.CentroidCoordinates.Lng)
+				fmt.Printf("diff: %f, decr: %f\n", diff, decrement)
+
+				fmt.Println("FRAMES:")
+				lng := prevIm.CentroidCoordinates.Lng
+				for frame := 1; frame <= frameCount-1; frame++ {
+					lng -= decrement
+					if lng < -180 {
+						lng += 360
+					}
+					fmt.Printf("prev: %f, lng: %f, end: %f\n", prevIm.CentroidCoordinates.Lng, lng, im.CentroidCoordinates.Lng)
+					path := buildFrameFilePath(prevIm, frame)
+					// if !shared.FileExists(path) {
+					// fmt.Println(prevIm.CentroidCoordinates.Lng, im.CentroidCoordinates.Lng, diff, path, lng)
+					generateFrame(prevIm, im, lng, path)
+					// }
+				}
+				fmt.Println("=====================")
+
+				prevIm = im
+			}
+		}
+	}()
+
+	return out
 }

@@ -2,6 +2,7 @@ package nasa
 
 import (
 	"context"
+	"earth/shared"
 	"encoding/json"
 	"io/ioutil"
 	"log"
@@ -33,12 +34,10 @@ const finalEndDate = "2015-06-13"
 const cacheDir = "metadata"
 
 func getImageMetaForDate(date string) ([]ImageMeta, error) {
-	// fmt.Println(date)
-
 	var b []byte
 	var err error
 	path := buildFilePath(date)
-	if fileExists(path) {
+	if shared.FileExists(path) {
 		b, err = ioutil.ReadFile(path)
 	} else {
 		resp, err := http.Get("https://epic.gsfc.nasa.gov/api/natural/date/" + date)
@@ -72,7 +71,7 @@ func writeImageMetaIfNotExists(date string, data []byte) error {
 		return err
 	}
 
-	if fileExists(path) {
+	if shared.FileExists(path) {
 		return nil
 	}
 

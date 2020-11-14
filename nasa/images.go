@@ -2,7 +2,7 @@ package nasa
 
 import (
 	"context"
-	"fmt"
+	"earth/shared"
 	"io"
 	"log"
 	"net/http"
@@ -14,11 +14,11 @@ import (
 
 // helper for reporting number of images downloaded per second
 func rate(count int, start time.Time) {
-	fmt.Printf("%f/s\n", float64(count)/time.Since(start).Seconds())
+	// fmt.Printf("%f/s\n", float64(count)/time.Since(start).Seconds())
 }
 
-func downloadImages(ctx context.Context, imageMetas <-chan ImageMeta) <-chan bool {
-	done := make(chan bool)
+func downloadImages(ctx context.Context, imageMetas <-chan ImageMeta) <-chan ImageMeta {
+	out := make(chan ImageMeta)
 
 	count := 0
 	start := time.Now()
@@ -38,13 +38,16 @@ func downloadImages(ctx context.Context, imageMetas <-chan ImageMeta) <-chan boo
 				}
 				count++
 				rate(count, start)
+				out <- im
 			}
 		}
 	}
 
 	go func() {
-		defer close(done)
-		numWorkers := 30
+		defer close(out)
+		// Make this syncronous for now to ensure images
+		// are order correctly for interpolation.
+		numWorkers := 1
 		wg := sync.WaitGroup{}
 		wg.Add(numWorkers)
 
@@ -54,7 +57,7 @@ func downloadImages(ctx context.Context, imageMetas <-chan ImageMeta) <-chan boo
 		wg.Wait()
 	}()
 
-	return done
+	return out
 }
 
 const imageFileDir = "images"
@@ -66,7 +69,7 @@ func downloadImageIfNotExists(im ImageMeta) error {
 		return err
 	}
 
-	if fileExists(path) {
+	if shared.FileExists(path) {
 		return nil
 	}
 

@@ -1,6 +1,7 @@
 package nasa
 
 import (
+	"earth/shared"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -9,13 +10,8 @@ import (
 
 const layoutISO = "2006-01-02"
 
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
-}
-
 func mkdirIfNotExists(dir string) error {
-	if !fileExists(dir) {
+	if !shared.FileExists(dir) {
 		if err := os.Mkdir(dir, 0777); err != nil {
 			return err
 		}
