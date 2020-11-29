@@ -181,7 +181,7 @@ func generateFrame(im1, im2 nasa.ImageMeta, lng float64, outFileName string) err
 
 func buildFrameFilePath(im nasa.ImageMeta, frame int) string {
 	dateFilePath := nasa.BuildImageFilePath(im)
-	return fmt.Sprintf(strings.Split(dateFilePath, "_0.png")[0]+"_%d.png", frame)
+	return fmt.Sprintf(strings.Split(dateFilePath, "_000.png")[0]+"_%03d.png", frame)
 }
 
 // InterpolateImages -
@@ -190,7 +190,7 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan st
 
 	go func() {
 		defer close(out)
-		const step = 2
+		const step = 0.5
 		var prevIm nasa.ImageMeta
 
 		for {
