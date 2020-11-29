@@ -35,7 +35,6 @@ func buildGIF(ctx context.Context, filePaths <-chan string) <-chan bool {
 		outGif := &gif.GIF{}
 
 		writeGIFAndClose := func() {
-			log.Println("writing the gif!...")
 			if len(outGif.Image) > 0 {
 				f, err := os.Create("earth.gif")
 				if err != nil {
@@ -47,7 +46,6 @@ func buildGIF(ctx context.Context, filePaths <-chan string) <-chan bool {
 					log.Fatal("error writing GIF", err)
 				}
 				f.Close()
-				log.Println("wrote the gif!")
 			}
 			done <- true
 		}
@@ -72,7 +70,7 @@ func buildGIF(ctx context.Context, filePaths <-chan string) <-chan bool {
 
 				bounds := img.Bounds()
 				palettedImage := image.NewPaletted(bounds, nil)
-				quantizer.Quantize(palettedImage, bounds, img, image.ZP)
+				quantizer.Quantize(palettedImage, bounds, img, image.Point{})
 				outGif.Image = append(outGif.Image, palettedImage)
 				outGif.Delay = append(outGif.Delay, 0)
 			}

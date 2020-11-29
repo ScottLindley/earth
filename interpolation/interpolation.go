@@ -12,6 +12,7 @@ import (
 	"math"
 	"os"
 	"strings"
+	"sync"
 )
 
 const width = float64(2048)
@@ -40,17 +41,17 @@ func computeDistanceFromEarth(im nasa.ImageMeta) float64 {
 // from the earth when the photo was taken.
 
 // The pixels count below was measured manually for the selected sample image.
-const sampleEarthRadiusInPixels = 797
+const sampleEarthRadiusInPixels = 791
 
-// Taken from "2020-11-06 00:22:23" metadata
+// Taken from "2020-09-04 00:03:41" metadata
 var sampleSatellitePosition = struct {
 	x float64
 	y float64
 	z float64
 }{
-	x: -889858.394792,
-	y: -1162409.272367,
-	z: -361887.314401,
+	x: -1326191.794585,
+	y: 698719.827083,
+	z: 229500.537516,
 }
 
 func computeEarthScale(distanceFromEarth float64) float64 {
@@ -167,10 +168,10 @@ func generateFrame(im1, im2 nasa.ImageMeta, lng float64, outFileName string) err
 
 			pixel := color.RGBA64{
 				// weighted RGB
-				R: uint16(math.Sqrt(float64(r1*r1)*weight1 + float64(r2*r2)*weight2)),
-				G: uint16(math.Sqrt(float64(g1*g1)*weight1 + float64(g2*g2)*weight2)),
-				B: uint16(math.Sqrt(float64(b1*b1)*weight1 + float64(b2*b2)*weight2)),
-				A: uint16(math.Sqrt(float64(a1*a1)*weight1 + float64(a2*a2)*weight2)),
+				R: uint16(math.Sqrt(float64(r1*r1)*weight2 + float64(r2*r2)*weight1)),
+				G: uint16(math.Sqrt(float64(g1*g1)*weight2 + float64(g2*g2)*weight1)),
+				B: uint16(math.Sqrt(float64(b1*b1)*weight2 + float64(b2*b2)*weight1)),
+				A: uint16(math.Sqrt(float64(a1*a1)*weight2 + float64(a2*a2)*weight1)),
 			}
 			pixelsOut.SetRGBA64(x2D, y2D, pixel)
 		}
@@ -209,6 +210,8 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan st
 					continue
 				}
 
+				wg := sync.WaitGroup{}
+
 				fmt.Println("----------------------")
 				fmt.Printf("prev: %s, im: %s\n", prevIm.Date, im.Date)
 
@@ -228,20 +231,21 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan st
 					if diff > originalDiff {
 						break
 					}
-					// fmt.Println(diff)
-					frame++
-					if frame > 20 {
-						return
-					}
 					// fmt.Printf("prev: %f, lng: %f, end: %f\n", prevIm.CentroidCoordinates.Lng, lng, im.CentroidCoordinates.Lng)
 					path := buildFrameFilePath(prevIm, frame)
 					// if !shared.FileExists(path) {
 					// fmt.Println(prevIm.CentroidCoordinates.Lng, im.CentroidCoordinates.Lng, diff, path, lng)
-					generateFrame(prevIm, im, lng, path)
+					wg.Add(1)
+					go func() {
+						generateFrame(prevIm, im, lng, path)
+						out <- path
+						wg.Done()
+					}()
 					// }
-					out <- path
 				}
-				// fmt.Println("=====================")
+
+				wg.Wait()
+				fmt.Println("=====================")
 
 				prevIm = im
 			}
