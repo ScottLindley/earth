@@ -108,7 +108,6 @@ func generateFrame(im1, im2 nasa.ImageMeta, lng float64, outFileName string) err
 	fmt.Printf("n1: %f, n2: %f, denom %f\n", lngDiff(centroid1.Lng, lng), lngDiff(lng, centroid2.Lng), lngDiff(centroid1.Lng, centroid2.Lng))
 	weight1 := lngDiff(centroid1.Lng, lng) / lngDiff(centroid1.Lng, centroid2.Lng)
 	weight2 := lngDiff(lng, centroid2.Lng) / lngDiff(centroid1.Lng, centroid2.Lng)
-	// fmt.Println(weight1, weight2)
 
 	// The centroid latitude for the virtual sphere in radians
 	centroidLatRadians := -degreesToRadians((centroid1.Lat * weight1) + (centroid2.Lat * weight2))
@@ -116,7 +115,6 @@ func generateFrame(im1, im2 nasa.ImageMeta, lng float64, outFileName string) err
 	distanceFromEarth := (computeDistanceFromEarth(im1) * weight1) + (computeDistanceFromEarth(im2) * weight2)
 	// How large the earth should appear as a percentage of the image width (ex. 0.78)
 	earthScale := computeEarthScale(distanceFromEarth)
-	// fmt.Println("earth scale", earthScale)
 
 	// The in-memory synthesized image to be written to disk
 	pixelsOut := image.NewRGBA64(image.Rectangle{image.Point{0, 0}, image.Point{int(width), int(height)}})
@@ -178,14 +176,13 @@ func generateFrame(im1, im2 nasa.ImageMeta, lng float64, outFileName string) err
 	}
 
 	f, _ := os.Create(outFileName)
-	png.Encode(f, pixelsOut)
-
-	return nil
+	err = png.Encode(f, pixelsOut)
+	return err
 }
 
 func buildFrameFilePath(im nasa.ImageMeta, frame int) string {
 	dateFilePath := nasa.BuildImageFilePath(im)
-	return fmt.Sprintf(strings.Split(dateFilePath, "_4.png")[0]+"_%d.png", frame)
+	return fmt.Sprintf(strings.Split(dateFilePath, "_0.png")[0]+"_%d.png", frame)
 }
 
 // InterpolateImages -
@@ -207,21 +204,22 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan st
 				}
 				if prevIm.Date == "" {
 					prevIm = im
+					out <- nasa.BuildImageFilePath(prevIm)
 					continue
 				}
 
+				paths := make([]string, 0)
 				wg := sync.WaitGroup{}
 
 				fmt.Println("----------------------")
 				fmt.Printf("prev: %s, im: %s\n", prevIm.Date, im.Date)
-
-				fmt.Printf("FIRST - prev: %f, end: %f\n", prevIm.CentroidCoordinates.Lng, im.CentroidCoordinates.Lng)
 
 				originalDiff := lngDiff(prevIm.CentroidCoordinates.Lng, im.CentroidCoordinates.Lng)
 				diff := originalDiff
 				lng := prevIm.CentroidCoordinates.Lng
 				frame := 0
 				for true {
+					frame++
 					// fmt.Println("FRAME: ", frame)
 					lng -= step
 					if lng < -180 {
@@ -231,20 +229,28 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan st
 					if diff > originalDiff {
 						break
 					}
-					// fmt.Printf("prev: %f, lng: %f, end: %f\n", prevIm.CentroidCoordinates.Lng, lng, im.CentroidCoordinates.Lng)
 					path := buildFrameFilePath(prevIm, frame)
-					// if !shared.FileExists(path) {
-					// fmt.Println(prevIm.CentroidCoordinates.Lng, im.CentroidCoordinates.Lng, diff, path, lng)
-					wg.Add(1)
-					go func() {
-						generateFrame(prevIm, im, lng, path)
-						out <- path
-						wg.Done()
-					}()
-					// }
+					paths = append(paths, path)
+					if !shared.FileExists(path) {
+						wg.Add(1)
+						go func(lng float64, path string) {
+							err := generateFrame(prevIm, im, lng, path)
+							if err != nil {
+								log.Fatal(err)
+							}
+							log.Println("here", path)
+							wg.Done()
+						}(lng, path)
+					}
 				}
 
 				wg.Wait()
+
+				for _, path := range paths {
+					out <- path
+				}
+				out <- nasa.BuildImageFilePath(im)
+
 				fmt.Println("=====================")
 
 				prevIm = im

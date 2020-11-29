@@ -98,5 +98,5 @@ func downloadImageIfNotExists(im ImageMeta) error {
 
 // BuildImageFilePath - given image meta data, create the files system path
 func BuildImageFilePath(im ImageMeta) string {
-	return imageFileDir + "/" + im.Date + ".png"
+	return imageFileDir + "/" + im.Date + "_0.png"
 }
