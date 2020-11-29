@@ -2,7 +2,7 @@ package nasa
 
 import "testing"
 
-func Test_getPreviousDate(t *testing.T) {
+func Test_getNextDate(t *testing.T) {
 	type args struct {
 		date string
 	}
@@ -15,17 +15,17 @@ func Test_getPreviousDate(t *testing.T) {
 		{
 			name: "When the date is in the middle of a month",
 			args: args{date: "2020-11-15"},
-			want: "2020-11-14",
+			want: "2020-11-16",
 		},
 		{
-			name: "When the date on the first of a month",
-			args: args{date: "2020-11-01"},
-			want: "2020-10-31",
+			name: "When the date on the last day of a month",
+			args: args{date: "2020-10-31"},
+			want: "2020-11-01",
 		},
 		{
-			name: "When the date is on the first of a year",
-			args: args{date: "2020-01-01"},
-			want: "2019-12-31",
+			name: "When the date is on the lat day of a year",
+			args: args{date: "2019-12-31"},
+			want: "2020-01-01",
 		},
 		{
 			name:    "When the date malformed",
@@ -36,13 +36,13 @@ func Test_getPreviousDate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getPreviousDate(tt.args.date)
+			got, err := getNextDate(tt.args.date)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("getPreviousDate() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("getNextDate() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("getPreviousDate() = %v, want %v", got, tt.want)
+				t.Errorf("getNextDate() = %v, want %v", got, tt.want)
 			}
 		})
 	}

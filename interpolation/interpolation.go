@@ -105,7 +105,6 @@ func generateFrame(im1, im2 nasa.ImageMeta, lng float64, outFileName string) err
 	// Each image will carry a weight between 0 and 1 where w1 + w2 = 1
 	// These weights can be used to find the lat/lng of the virtual centroid
 	// as well as computing the composite pixel value.
-	fmt.Printf("n1: %f, n2: %f, denom %f\n", lngDiff(centroid1.Lng, lng), lngDiff(lng, centroid2.Lng), lngDiff(centroid1.Lng, centroid2.Lng))
 	weight1 := lngDiff(centroid1.Lng, lng) / lngDiff(centroid1.Lng, centroid2.Lng)
 	weight2 := lngDiff(lng, centroid2.Lng) / lngDiff(centroid1.Lng, centroid2.Lng)
 
@@ -238,7 +237,6 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan st
 							if err != nil {
 								log.Fatal(err)
 							}
-							log.Println("here", path)
 							wg.Done()
 						}(lng, path)
 					}
@@ -250,8 +248,6 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan st
 					out <- path
 				}
 				out <- nasa.BuildImageFilePath(im)
-
-				fmt.Println("=====================")
 
 				prevIm = im
 			}

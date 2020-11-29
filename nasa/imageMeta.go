@@ -102,7 +102,7 @@ func generateImageMeta(ctx context.Context, startDate, endDate string) <-chan Im
 					out <- im
 				}
 
-				date, err = getPreviousDate(date)
+				date, err = getNextDate(date)
 				if err != nil {
 					log.Fatal(err)
 				}
@@ -117,12 +117,12 @@ func generateImageMeta(ctx context.Context, startDate, endDate string) <-chan Im
 	return out
 }
 
-func getPreviousDate(date string) (string, error) {
+func getNextDate(date string) (string, error) {
 	t, err := time.Parse(layoutISO, date)
 	if err != nil {
 		return "", err
 	}
-	t = t.Add(-time.Hour * 24)
+	t = t.Add(time.Hour * 24)
 	return t.Format(layoutISO), nil
 }
 
