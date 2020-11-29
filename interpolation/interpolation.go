@@ -3,6 +3,7 @@ package interpolation
 import (
 	"context"
 	"earth/nasa"
+	"earth/shared"
 	"fmt"
 	"image"
 	"image/color"
@@ -18,15 +19,9 @@ const halfWidth = width / 2
 const height = float64(2048)
 const halfHeight = height / 2
 
-func loadImage(im nasa.ImageMeta) (image.Image, error) {
+func loadNasaImage(im nasa.ImageMeta) (image.Image, error) {
 	path := nasa.BuildImageFilePath(im)
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	img, _, err := image.Decode(f)
-	return img, err
+	return shared.LoadImage(path)
 }
 
 func degreesToRadians(d float64) float64 {
@@ -91,7 +86,7 @@ func latLngToCoordinates(projectedLat, projectedLng, realImageLat, realImageLng 
 // the second image lng.
 func generateFrame(im1, im2 nasa.ImageMeta, lng float64, outFileName string) error {
 	centroid1 := im1.CentroidCoordinates
-	image1, err := loadImage(im1)
+	image1, err := loadNasaImage(im1)
 	if err != nil {
 		log.Println("error loading image 1", im1.Image)
 		return err
@@ -99,7 +94,7 @@ func generateFrame(im1, im2 nasa.ImageMeta, lng float64, outFileName string) err
 	earthScale1 := computeEarthScaleFromImage(im1)
 
 	centroid2 := im2.CentroidCoordinates
-	image2, err := loadImage(im2)
+	image2, err := loadNasaImage(im2)
 	if err != nil {
 		log.Println("error loading image 2", im2.Image)
 		return err
@@ -112,7 +107,7 @@ func generateFrame(im1, im2 nasa.ImageMeta, lng float64, outFileName string) err
 	fmt.Printf("n1: %f, n2: %f, denom %f\n", lngDiff(centroid1.Lng, lng), lngDiff(lng, centroid2.Lng), lngDiff(centroid1.Lng, centroid2.Lng))
 	weight1 := lngDiff(centroid1.Lng, lng) / lngDiff(centroid1.Lng, centroid2.Lng)
 	weight2 := lngDiff(lng, centroid2.Lng) / lngDiff(centroid1.Lng, centroid2.Lng)
-	fmt.Println(weight1, weight2)
+	// fmt.Println(weight1, weight2)
 
 	// The centroid latitude for the virtual sphere in radians
 	centroidLatRadians := -degreesToRadians((centroid1.Lat * weight1) + (centroid2.Lat * weight2))
@@ -120,7 +115,7 @@ func generateFrame(im1, im2 nasa.ImageMeta, lng float64, outFileName string) err
 	distanceFromEarth := (computeDistanceFromEarth(im1) * weight1) + (computeDistanceFromEarth(im2) * weight2)
 	// How large the earth should appear as a percentage of the image width (ex. 0.78)
 	earthScale := computeEarthScale(distanceFromEarth)
-	fmt.Println("earth scale", earthScale)
+	// fmt.Println("earth scale", earthScale)
 
 	// The in-memory synthesized image to be written to disk
 	pixelsOut := image.NewRGBA64(image.Rectangle{image.Point{0, 0}, image.Point{int(width), int(height)}})
@@ -224,7 +219,7 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan st
 				lng := prevIm.CentroidCoordinates.Lng
 				frame := 0
 				for true {
-					fmt.Println("FRAME: ", frame)
+					// fmt.Println("FRAME: ", frame)
 					lng -= step
 					if lng < -180 {
 						lng += 360
@@ -233,19 +228,20 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan st
 					if diff > originalDiff {
 						break
 					}
-					fmt.Println(diff)
+					// fmt.Println(diff)
 					frame++
 					if frame > 20 {
 						return
 					}
-					fmt.Printf("prev: %f, lng: %f, end: %f\n", prevIm.CentroidCoordinates.Lng, lng, im.CentroidCoordinates.Lng)
+					// fmt.Printf("prev: %f, lng: %f, end: %f\n", prevIm.CentroidCoordinates.Lng, lng, im.CentroidCoordinates.Lng)
 					path := buildFrameFilePath(prevIm, frame)
 					// if !shared.FileExists(path) {
 					// fmt.Println(prevIm.CentroidCoordinates.Lng, im.CentroidCoordinates.Lng, diff, path, lng)
 					generateFrame(prevIm, im, lng, path)
 					// }
+					out <- path
 				}
-				fmt.Println("=====================")
+				// fmt.Println("=====================")
 
 				prevIm = im
 			}
