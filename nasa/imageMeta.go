@@ -27,9 +27,6 @@ type ImageMeta struct {
 	} `json:"dscovr_j2000_position"`
 }
 
-// There are no more available images before this date.
-const finalEndDate = "2015-06-13"
-
 // The directory where we'll write our files
 const cacheDir = "metadata"
 
@@ -85,7 +82,7 @@ func writeImageMetaIfNotExists(date string, data []byte) error {
 	return err
 }
 
-func generateImageMeta(ctx context.Context, startDate string) <-chan ImageMeta {
+func generateImageMeta(ctx context.Context, startDate, endDate string) <-chan ImageMeta {
 	out := make(chan ImageMeta)
 
 	go func() {
@@ -110,7 +107,7 @@ func generateImageMeta(ctx context.Context, startDate string) <-chan ImageMeta {
 					log.Fatal(err)
 				}
 				// We've reached the end, close the pipeline
-				if date == finalEndDate {
+				if date == endDate {
 					return
 				}
 			}
