@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
-	"earth/gif"
+	"earth/animation"
 	"earth/interpolation"
 	"earth/nasa"
-	"fmt"
+	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 )
 
@@ -15,9 +16,28 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	handleSigInt(cancel)
 	ims := nasa.DownloadImages(ctx)
-	filePaths := interpolation.InterpolateImages(ctx, ims)
-	done := gif.Build(ctx, filePaths)
+	done := interpolation.InterpolateImages(ctx, ims)
 	<-done
+
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+
+	log.Println("Generating video and gif...")
+
+	go func() {
+		animation.BuildVideo()
+		log.Println("video done!")
+		wg.Done()
+	}()
+	go func() {
+		animation.BuildGIF()
+		log.Println("gif done!")
+		wg.Done()
+	}()
+
+	wg.Wait()
+
+	log.Println("Done!")
 }
 
 func handleSigInt(cancel context.CancelFunc) {
@@ -25,7 +45,7 @@ func handleSigInt(cancel context.CancelFunc) {
 	signal.Notify(sigc, syscall.SIGINT)
 	go func() {
 		<-sigc
-		fmt.Println("\n\nSIGINT acknowledged, draining pipeline...")
+		log.Println("\nSIGINT acknowledged, draining pipeline...")
 		cancel()
 	}()
 }

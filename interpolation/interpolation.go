@@ -185,11 +185,14 @@ func buildFrameFilePath(im nasa.ImageMeta, frame int) string {
 }
 
 // InterpolateImages -
-func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan string {
-	out := make(chan string)
+func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan bool {
+	out := make(chan bool)
 
 	go func() {
-		defer close(out)
+		defer func() {
+			out <- true
+			close(out)
+		}()
 		const step = 0.5
 		var prevIm nasa.ImageMeta
 
@@ -203,7 +206,6 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan st
 				}
 				if prevIm.Date == "" {
 					prevIm = im
-					out <- nasa.BuildImageFilePath(prevIm)
 					continue
 				}
 
@@ -243,11 +245,6 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan st
 				}
 
 				wg.Wait()
-
-				for _, path := range paths {
-					out <- path
-				}
-				out <- nasa.BuildImageFilePath(im)
 
 				prevIm = im
 			}
