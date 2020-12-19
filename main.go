@@ -16,6 +16,9 @@ func main() {
 	// TODO: maybe make these arguments?
 	startDate := "2018-09-06"
 	endDate := "2018-09-08"
+	// The GIF takes a crazy long time to finish and is over 1GB
+	// for the dates specified above. So we'll default to video only.
+	generateGIF := false
 
 	ctx, cancel := context.WithCancel(context.Background())
 	handleSigInt(cancel)
@@ -25,20 +28,24 @@ func main() {
 	<-done
 
 	wg := &sync.WaitGroup{}
-	wg.Add(2)
 
-	log.Println("Generating video and gif...")
-
+	wg.Add(1)
 	go func() {
+		log.Println("Generating video...")
 		animation.BuildVideo()
 		log.Println("video done!")
 		wg.Done()
 	}()
-	go func() {
-		animation.BuildGIF()
-		log.Println("gif done!")
-		wg.Done()
-	}()
+
+	if generateGIF {
+		wg.Add(1)
+		go func() {
+			log.Println("Generating gif...")
+			animation.BuildGIF()
+			log.Println("gif done!")
+			wg.Done()
+		}()
+	}
 
 	wg.Wait()
 

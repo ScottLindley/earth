@@ -188,12 +188,12 @@ func buildFrameFilePath(im nasa.ImageMeta, frame int) string {
 // frames to "fill in the gap" between them. The number of frames produced will
 // depend on the amount of time that has passed between the two images in question.
 func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan bool {
-	out := make(chan bool)
+	done := make(chan bool)
 
 	go func() {
 		defer func() {
-			out <- true
-			close(out)
+			done <- true
+			close(done)
 		}()
 		const step = 0.5
 		var prevIm nasa.ImageMeta
@@ -211,11 +211,9 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan bo
 					continue
 				}
 
-				paths := make([]string, 0)
-				wg := sync.WaitGroup{}
+				fmt.Printf("Interpolating... IMG 1: %s, IMG 2: %s\n", prevIm.Date, im.Date)
 
-				fmt.Println("----------------------")
-				fmt.Printf("prev: %s, im: %s\n", prevIm.Date, im.Date)
+				wg := sync.WaitGroup{}
 
 				originalDiff := lngDiff(prevIm.CentroidCoordinates.Lng, im.CentroidCoordinates.Lng)
 				diff := originalDiff
@@ -223,7 +221,6 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan bo
 				frame := 0
 				for true {
 					frame++
-					// fmt.Println("FRAME: ", frame)
 					lng -= step
 					if lng < -180 {
 						lng += 360
@@ -233,7 +230,6 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan bo
 						break
 					}
 					path := buildFrameFilePath(prevIm, frame)
-					paths = append(paths, path)
 					if !shared.FileExists(path) {
 						wg.Add(1)
 						go func(lng float64, path string) {
@@ -253,5 +249,5 @@ func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan bo
 		}
 	}()
 
-	return out
+	return done
 }

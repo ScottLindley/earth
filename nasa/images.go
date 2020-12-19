@@ -8,14 +8,17 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 )
 
 func downloadImages(ctx context.Context, imageMetas <-chan ImageMeta) <-chan ImageMeta {
 	out := make(chan ImageMeta)
 
-	worker := func(wg *sync.WaitGroup) {
-		defer wg.Done()
+	if err := mkdirIfNotExists(imageFileDir); err != nil {
+		log.Fatal("Error creating images directory", err)
+	}
+
+	go func() {
+		defer close(out)
 		for {
 			select {
 			case <-ctx.Done():
@@ -31,20 +34,6 @@ func downloadImages(ctx context.Context, imageMetas <-chan ImageMeta) <-chan Ima
 				out <- im
 			}
 		}
-	}
-
-	go func() {
-		defer close(out)
-		// Make this syncronous for now to ensure images
-		// are order correctly for interpolation.
-		numWorkers := 1
-		wg := sync.WaitGroup{}
-		wg.Add(numWorkers)
-
-		for i := 0; i < numWorkers; i++ {
-			go worker(&wg)
-		}
-		wg.Wait()
 	}()
 
 	return out
@@ -54,10 +43,6 @@ const imageFileDir = "images"
 
 func downloadImageIfNotExists(im ImageMeta) error {
 	path := BuildImageFilePath(im)
-
-	if err := mkdirIfNotExists(imageFileDir); err != nil {
-		return err
-	}
 
 	if shared.FileExists(path) {
 		return nil
