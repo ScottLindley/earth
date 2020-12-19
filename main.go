@@ -13,9 +13,14 @@ import (
 )
 
 func main() {
+	// TODO: maybe make these arguments?
+	startDate := "2018-09-06"
+	endDate := "2018-09-08"
+
 	ctx, cancel := context.WithCancel(context.Background())
 	handleSigInt(cancel)
-	ims := nasa.DownloadImages(ctx)
+
+	ims := nasa.DownloadImages(ctx, startDate, endDate)
 	done := interpolation.InterpolateImages(ctx, ims)
 	<-done
 

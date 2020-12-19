@@ -120,10 +120,10 @@ func generateFrame(im1, im2 nasa.ImageMeta, lng float64, outFileName string) err
 
 	for x2D := 0; x2D < int(width); x2D++ {
 		for y2D := 0; y2D < int(height); y2D++ {
-			// initialze the current pixel as black (deep space!)
+			// Initialze the current pixel as black (deep space!)
 			pixelsOut.Set(x2D, y2D, color.Black)
-			// scale x approprately for this sphere size
-			// we want to fit this vitural sphere to the "unit sphere"
+			// Scale x approprately for this sphere size.
+			// We want to fit this vitural sphere to the "unit sphere"
 			// where the radius of the surface is 1.
 			x2DScaled := (float64(x2D) - halfWidth) / (halfWidth * earthScale)
 			y2DScaled := -(float64(y2D) - halfHeight) / (halfHeight * earthScale)
@@ -141,7 +141,7 @@ func generateFrame(im1, im2 nasa.ImageMeta, lng float64, outFileName string) err
 			y3D := math.Cos(centroidLatRadians)*float64(y2DScaled) - math.Sin(centroidLatRadians)*math.Sqrt(1-radius)
 			z3D := math.Sin(centroidLatRadians)*float64(y2DScaled) + math.Cos(centroidLatRadians)*math.Sqrt(1-radius)
 
-			// get lat lng from 3D coordinates using the provided lng
+			// Get lat lng from 3D coordinates using the provided lng
 			projectedLat := math.Asin(y3D)
 			projectedLng := math.Atan2(x3D, z3D) + degreesToRadians(lng)
 
@@ -149,7 +149,7 @@ func generateFrame(im1, im2 nasa.ImageMeta, lng float64, outFileName string) err
 				projectedLng += math.Pi * 2
 			}
 
-			// now for each sphere, figure out what 2D x/y the lat/lng corresponds to
+			// Now for each sphere, figure out what 2D x/y the lat/lng corresponds to
 			x1, y1 := latLngToCoordinates(projectedLat, projectedLng, degreesToRadians(centroid1.Lat), degreesToRadians(centroid1.Lng))
 			x1Scaled := int((x1 * halfWidth * earthScale1) + halfWidth)
 			y1Scaled := int(-(y1 * halfHeight * earthScale1) + halfHeight)
@@ -164,7 +164,7 @@ func generateFrame(im1, im2 nasa.ImageMeta, lng float64, outFileName string) err
 			r2, g2, b2, a2 := pixel2.RGBA()
 
 			pixel := color.RGBA64{
-				// weighted RGB
+				// Weighted RGB
 				R: uint16(math.Sqrt(float64(r1*r1)*weight2 + float64(r2*r2)*weight1)),
 				G: uint16(math.Sqrt(float64(g1*g1)*weight2 + float64(g2*g2)*weight1)),
 				B: uint16(math.Sqrt(float64(b1*b1)*weight2 + float64(b2*b2)*weight1)),
@@ -184,7 +184,9 @@ func buildFrameFilePath(im nasa.ImageMeta, frame int) string {
 	return fmt.Sprintf(strings.Split(dateFilePath, "_000.png")[0]+"_%03d.png", frame)
 }
 
-// InterpolateImages -
+// InterpolateImages - given a stream of photographs (real ones), generate
+// frames to "fill in the gap" between them. The number of frames produced will
+// depend on the amount of time that has passed between the two images in question.
 func InterpolateImages(ctx context.Context, ims <-chan nasa.ImageMeta) <-chan bool {
 	out := make(chan bool)
 

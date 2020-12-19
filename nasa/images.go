@@ -9,19 +9,11 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 )
-
-// helper for reporting number of images downloaded per second
-func rate(count int, start time.Time) {
-	// fmt.Printf("%f/s\n", float64(count)/time.Since(start).Seconds())
-}
 
 func downloadImages(ctx context.Context, imageMetas <-chan ImageMeta) <-chan ImageMeta {
 	out := make(chan ImageMeta)
 
-	count := 0
-	start := time.Now()
 	worker := func(wg *sync.WaitGroup) {
 		defer wg.Done()
 		for {
@@ -36,8 +28,6 @@ func downloadImages(ctx context.Context, imageMetas <-chan ImageMeta) <-chan Ima
 				if err := downloadImageIfNotExists(im); err != nil {
 					log.Println("error downloading image", im.Date, err)
 				}
-				count++
-				rate(count, start)
 				out <- im
 			}
 		}
